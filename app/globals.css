@@ -103,30 +103,37 @@ a {
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 54px;
-  height: 54px;
+  width: 82px;
+  height: 58px;
   overflow: hidden;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 14px 26px rgba(75, 82, 230, 0.14);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .brand-logo img {
-  width: 310px;
-  height: 310px;
+  width: 110px;
+  height: 110px;
   object-fit: contain;
-  transform: translateY(-73px);
+  transform: none;
 }
 
 .brand-logo.compact {
-  width: 50px;
-  height: 50px;
-  border-radius: 15px;
-  background: #fff url("/quillora-logo.png") center 31% / 172px 172px no-repeat;
+  width: 76px;
+  height: 54px;
+  border-radius: 0;
+  background: transparent;
 }
 
 .brand-logo.compact img {
-  display: none;
+  display: block;
+  width: 96px;
+  height: 96px;
+}
+
+.brand-logo.natural-logo {
+  background: transparent;
+  box-shadow: none;
 }
 
 .brand strong {
