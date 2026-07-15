@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "صياغة بشرية | تحويل النصوص إلى أسلوب بشري",
-  description: "واجهة عربية احترافية لتحويل النصوص والملفات إلى صياغة بشرية مع نظام XP وتاريخ تحويلات.",
+  title: "QUILLORA | صياغة بشرية",
+  description: "منصة عربية احترافية لتحويل النصوص والملفات إلى صياغة بشرية refined human writing مع نظام XP وتاريخ تحويلات.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/quillora-logo.png",
+    shortcut: "/quillora-logo.png",
   },
 };
 

@@ -134,6 +134,14 @@ function Icon({ children, className = "" }: { children: ReactNode; className?: s
   return <span className={`icon ${className}`}>{children}</span>;
 }
 
+function BrandLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className={compact ? "brand-logo compact" : "brand-logo"} aria-hidden="true">
+      <img src="/quillora-logo.png" alt="" />
+    </span>
+  );
+}
+
 export function HumanizeApp({ initialRoute }: { initialRoute: Route }) {
   const [route, setRoute] = useState<Route>(initialRoute);
   const [xp, setXp] = useState(2450);
@@ -265,10 +273,10 @@ function Header({
   return (
     <header className="topbar">
       <a href="/" className="brand" onClick={(event) => navigate("/", event)}>
-        <span className="brand-mark">✦</span>
+        <BrandLogo compact />
         <span>
           <strong>صياغة بشرية</strong>
-          <small>حوّل النصوص إلى أسلوب بشري احترافي</small>
+          <small>QUILLORA · حوّل النصوص إلى أسلوب بشري احترافي</small>
         </span>
       </a>
 
@@ -289,11 +297,11 @@ function Header({
       </nav>
 
       <div className="top-actions">
-        <button className="outline-btn" onClick={(event) => navigate("/files", event)}>
-          <span>☁</span> رفع ملف
-        </button>
         <button className="gradient-btn small" onClick={(event) => navigate("/", event)}>
           ابدأ الآن
+        </button>
+        <button className="outline-btn" onClick={(event) => navigate("/files", event)}>
+          <span>☁</span> رفع ملف
         </button>
         <button className="xp-pill" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen}>
           <span className="xp-star">☆</span>
@@ -321,10 +329,10 @@ function AuthTopbar({ navigate }: { navigate: (route: Route, event?: MouseEvent<
   return (
     <header className="auth-topbar">
       <a href="/" className="brand" onClick={(event) => navigate("/", event)}>
-        <span className="brand-mark">✦</span>
+        <BrandLogo compact />
         <span>
           <strong>صياغة بشرية</strong>
-          <small>حوّل النصوص إلى أسلوب بشري احترافي</small>
+          <small>QUILLORA · حوّل النصوص إلى أسلوب بشري احترافي</small>
         </span>
       </a>
       <button className="link-btn" onClick={(event) => navigate("/", event)}>
@@ -843,6 +851,15 @@ function HistoryPage({
   const completed = jobs.filter((job) => job.status === "completed").length;
   const savedFiles = jobs.filter((job) => job.type === "file").length;
   const xpUsed = jobs.reduce((sum, job) => sum + job.xp, 0);
+  const chartData = useMemo(() => {
+    const buckets = Array.from({ length: 7 }, () => 0);
+    jobs.forEach((job) => {
+      const dayIndex = new Date(job.createdAt).getDay();
+      buckets[dayIndex] += 1;
+    });
+    const max = Math.max(...buckets, 1);
+    return buckets.map((value) => Math.max(6, Math.round((value / max) * 86)));
+  }, [jobs]);
 
   return (
     <div className="page history-layout">
@@ -878,7 +895,7 @@ function HistoryPage({
         <Card>
           <div className="section-title"><h3>نظرة عامة على التحويلات</h3><select><option>آخر 7 أيام</option></select></div>
           <div className="mini-chart">
-            {[18, 32, 48, 35, 62, 44, 28].map((height, index) => (
+            {chartData.map((height, index) => (
               <span key={index} style={{ height: `${height}%` }} />
             ))}
           </div>
@@ -1142,9 +1159,15 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle: str
   return (
     <div className="auth-page">
       <Card className="auth-side">
-        <div className="auth-illustration">✦</div>
-        <h2>منصة ذكاء اصطناعي تكتب مثلك</h2>
-        <p>صياغة بشرية تساعدك على تحويل أفكارك إلى محتوى احترافي بدقة وذكاء يحاكي أسلوبك ويعبر عنك.</p>
+        <div className="auth-logo-panel">
+          <img src="/quillora-logo.png" alt="QUILLORA Refined Human Writing" />
+        </div>
+        <h2>{title === "تسجيل الدخول" ? "منصة ذكاء اصطناعي تكتب مثلك" : "ابدأ رحلتك مع صياغة بشرية"}</h2>
+        <p>
+          {title === "تسجيل الدخول"
+            ? "صياغة بشرية تساعدك على تحويل أفكارك إلى محتوى احترافي بدقة وذكاء يحاكي أسلوبك ويعبر عنك."
+            : "أنشئ حسابك الآن واستمتع بكل الأدوات لتحويل كتاباتك إلى محتوى بشري احترافي."}
+        </p>
         {["محتوى أصلي 100%", "خصوصية وأمان تام", "توفير الوقت والجهد", "دعم متواصل"].map((item) => (
           <div className="auth-benefit" key={item}><Icon>✓</Icon><div><strong>{item}</strong><small>تجربة عربية واضحة وموثوقة.</small></div></div>
         ))}
