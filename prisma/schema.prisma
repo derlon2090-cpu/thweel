@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobType {
+  TEXT
+  FILE
+}
+
+enum JobStatus {
+  PENDING
+  AWAITING_CONFIRMATION
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum XpTransactionType {
+  WELCOME_BONUS
+  TEXT_HUMANIZE
+  FILE_HUMANIZE
+  REFUND
+  PURCHASE
+  ADMIN_ADJUSTMENT
+}
+
+enum UserFileKind {
+  INPUT
+  OUTPUT
+}
+
+enum PlanCode {
+  STARTER
+  PRO
+  BUSINESS
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model Profile {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  fullName            String
+  passwordHash        String
+  emailVerifiedAt     DateTime?
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int                  @default(0)
+  lockedUntil         DateTime?
+  xpBalance           Int                  @default(50)
+  xpLevel             Int                  @default(1)
+  totalXpUsed         Int                  @default(0)
+  totalXpEarned       Int                  @default(50)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  sessions            UserSession[]
+  resetTokens         PasswordResetToken[]
+  jobs                HumanizeJob[]
+  xpTransactions      XpTransaction[]
+  files               UserFile[]
+  payments            Payment[]
+
+  @@index([createdAt])
+}
+
+model UserSession {
+  id           String    @id @default(cuid())
+  sessionToken String    @unique
+  userId       String
+  user         Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model HumanizeJob {
+  id             String          @id @default(cuid())
+  userId         String
+  user           Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           JobType
+  status         JobStatus       @default(PENDING)
+  title          String
+  inputText      String?
+  outputText     String?
+  tone           String
+  strength       String
+  preserveMeaning Boolean        @default(true)
+  noNewInfo      Boolean         @default(true)
+  sourceFormat   String?
+  outputFormat   String?
+  fileName       String?
+  fileSize       Int?
+  wordCount      Int             @default(0)
+  xpCost         Int             @default(0)
+  detectedLanguage String?
+  beforeAiScore  Int?
+  beforeHumanScore Int?
+  beforeScoreConfidence Int?
+  afterAiScore   Int?
+  afterHumanScore Int?
+  afterScoreConfidence Int?
+  scoreReasons   Json?
+  progress       Int             @default(0)
+  progressMessage String?
+  totalChunks    Int             @default(0)
+  processedChunks Int            @default(0)
+  provider       String?
+  errorMessage   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  files          UserFile[]
+  transactions   XpTransaction[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model XpTransaction {
+  id          String            @id @default(cuid())
+  userId      String
+  user        Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         HumanizeJob?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  type        XpTransactionType
+  amount      Int
+  balanceAfter Int
+  description String
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+
+  @@index([userId, createdAt])
+  @@index([jobId])
+}
+
+model UserFile {
+  id          String       @id @default(cuid())
+  userId      String
+  user        Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         HumanizeJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  kind        UserFileKind
+  fileName    String
+  mimeType    String
+  size        Int
+  storagePath String
+  checksum    String?
+  createdAt   DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([jobId])
+}
+
+model Plan {
+  id        String   @id @default(cuid())
+  code      PlanCode @unique
+  name      String
+  monthlyXp Int
+  priceUsd  Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  user            Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String
+  providerRef     String?
+  status          PaymentStatus @default(PENDING)
+  amountUsd       Int
+  xpAmount        Int
+  description     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId, createdAt])
+}
