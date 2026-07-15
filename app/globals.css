@@ -103,23 +103,23 @@ a {
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 82px;
-  height: 58px;
-  overflow: hidden;
+  width: 54px;
+  height: 54px;
+  overflow: visible;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
 
 .brand-logo img {
-  width: 110px;
-  height: 110px;
+  width: 54px;
+  height: 54px;
   object-fit: contain;
   transform: none;
 }
 
 .brand-logo.compact {
-  width: 76px;
+  width: 54px;
   height: 54px;
   border-radius: 0;
   background: transparent;
@@ -127,8 +127,8 @@ a {
 
 .brand-logo.compact img {
   display: block;
-  width: 96px;
-  height: 96px;
+  width: 54px;
+  height: 54px;
 }
 
 .brand-logo.natural-logo {
@@ -508,7 +508,9 @@ a {
 }
 
 .control-row,
-.check-row {
+.control-grid,
+.check-row,
+.switch-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
@@ -571,7 +573,8 @@ textarea {
   background: linear-gradient(90deg, #1a70ff, #5d7dff);
 }
 
-.check-row label {
+.check-row label,
+.switch-row label {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -586,12 +589,16 @@ textarea {
 }
 
 .check-row input,
+.switch-row input,
 .auth-meta input,
 .terms input,
 .file-options input {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0;
   accent-color: var(--blue);
+  flex: none;
 }
 
 .estimate-row {
@@ -1480,7 +1487,9 @@ summary {
   .steps-cta,
   .steps-inline,
   .control-row,
+  .control-grid,
   .check-row,
+  .switch-row,
   .compare-grid,
   .file-options,
   .filters-row,

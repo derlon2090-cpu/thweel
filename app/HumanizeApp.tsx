@@ -453,6 +453,14 @@ ${analysis.message}`;
 
         <Card>
           <div className="section-title">
+            <h3>ملاحظات سريعة</h3>
+            <span>↯</span>
+          </div>
+          <p className="empty-state">التحويل لا يبدأ إلا بعد تحليل التكلفة وموافقتك، ولا يتم خصم XP قبل التأكيد.</p>
+        </Card>
+
+        <Card>
+          <div className="section-title">
             <h3>درجة بشرية النص</h3>
             <span>ⓘ</span>
           </div>
@@ -476,14 +484,6 @@ ${analysis.message}`;
             <button onClick={download}>تحميل</button>
             <button onClick={() => navigator.clipboard.writeText(output || text).then(() => notify("تم تجهيز النص للمشاركة."))}>مشاركة</button>
           </div>
-        </Card>
-
-        <Card>
-          <div className="section-title">
-            <h3>ملاحظات سريعة</h3>
-            <span>↯</span>
-          </div>
-          <p className="empty-state">التحويل لا يبدأ إلا بعد تحليل التكلفة وموافقتك، ولا يتم خصم XP قبل التأكيد.</p>
         </Card>
       </aside>
 
