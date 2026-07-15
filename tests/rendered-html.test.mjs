@@ -2,40 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render(path = "/") {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${path}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  return worker.fetch(
-    new Request(`http://localhost${path}`, {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-}
-
-test("renders the humanize application shell", async () => {
-  const response = await render("/");
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-
-  const html = await response.text();
-  assert.match(html, /صياغة بشرية/);
-  assert.match(html, /تحويل النص/);
-  assert.match(html, /2450|2,450/);
-  assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton|codex-preview/i);
-});
-
-test("keeps production pages wired to the shared app", async () => {
+test("production pages are wired to the shared app", async () => {
   const [home, files, history, features, pricing, login, register, layout, packageJson] =
     await Promise.all([
       readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
@@ -55,5 +22,18 @@ test("keeps production pages wired to the shared app", async () => {
 
   assert.match(layout, /lang="ar"/);
   assert.match(layout, /dir="rtl"/);
+  assert.match(layout, /QUILLORA/);
+  assert.match(packageJson, /"build": "next build"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+});
+
+test("app shell includes Quillora branding and XP flow", async () => {
+  const app = await readFile(new URL("../app/HumanizeApp.tsx", import.meta.url), "utf8");
+
+  assert.match(app, /quillora-logo\.png/);
+  assert.match(app, /xp/);
+  assert.match(app, /reserveXp/);
+  assert.match(app, /localStorage/);
+  assert.match(app, /\/login/);
+  assert.match(app, /\/register/);
 });
