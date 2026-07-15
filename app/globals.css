@@ -138,14 +138,14 @@ a {
 
 .brand strong {
   display: block;
-  font-size: 22px;
+  font-size: 20px;
   letter-spacing: -0.03em;
 }
 
 .brand small {
   display: block;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   margin-top: 2px;
 }
 
@@ -546,9 +546,9 @@ textarea {
   min-height: 290px;
   resize: vertical;
   padding: 26px 28px;
-  line-height: 2;
-  font-size: 20px;
-  font-weight: 650;
+  line-height: 1.9;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .segmented {
@@ -1302,10 +1302,10 @@ summary {
 
 .auth-page {
   display: grid;
-  grid-template-columns: 520px minmax(720px, 1fr);
-  gap: 44px;
+  grid-template-columns: 470px minmax(700px, 1fr);
+  gap: 38px;
   direction: ltr;
-  width: min(1530px, calc(100% - 170px));
+  width: min(1450px, calc(100% - 150px));
   margin: 36px auto;
   align-items: stretch;
 }
@@ -1316,13 +1316,13 @@ summary {
 
 .auth-side,
 .auth-card {
-  padding: 46px 56px;
+  padding: 42px 52px;
   border-radius: 24px;
 }
 
 .auth-side {
   text-align: center;
-  min-height: 820px;
+  min-height: 760px;
 }
 
 .auth-logo-panel {
@@ -1349,13 +1349,13 @@ summary {
 .auth-card h1 {
   margin: 0;
   text-align: center;
-  font-size: 48px;
+  font-size: 42px;
   letter-spacing: -0.05em;
 }
 
 .auth-card > p {
   text-align: center;
-  font-size: 18px;
+  font-size: 16px;
   margin: 10px 0 0;
 }
 
@@ -1377,12 +1377,12 @@ summary {
 
 .auth-form input {
   margin-top: 10px;
-  height: 62px;
-  font-size: 17px;
+  height: 56px;
+  font-size: 16px;
 }
 
 .auth-form.register input {
-  height: 52px;
+  height: 50px;
   margin-top: 7px;
 }
 
