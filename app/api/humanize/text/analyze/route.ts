@@ -1,9 +1,5 @@
 export const runtime = "nodejs";
 
-function hasSession(request: Request) {
-  return request.headers.get("cookie")?.includes("quillora_session=") ?? false;
-}
-
 function countWords(text: string) {
   const cleaned = text.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
   return cleaned ? cleaned.split(" ").filter(Boolean).length : 0;
@@ -25,10 +21,6 @@ function detectLanguage(text: string) {
 
 export async function POST(request: Request) {
   try {
-    if (!hasSession(request)) {
-      return Response.json({ error: "UNAUTHORIZED", message: "سجّل الدخول أولاً لاستخدام التحويل ورصيد XP." }, { status: 401 });
-    }
-
     const body = await request.json();
     const text = String(body?.text || "").trim();
     const currentBalance = Math.max(Number(body?.currentBalance ?? 50) || 0, 0);

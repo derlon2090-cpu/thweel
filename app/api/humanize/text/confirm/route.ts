@@ -1,10 +1,6 @@
 export const runtime = "nodejs";
 export const maxDuration = 20;
 
-function hasSession(request: Request) {
-  return request.headers.get("cookie")?.includes("quillora_session=") ?? false;
-}
-
 function countWords(text: string) {
   const cleaned = text.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
   return cleaned ? cleaned.split(" ").filter(Boolean).length : 0;
@@ -89,10 +85,6 @@ function publicUser(balance: number) {
 
 export async function POST(request: Request) {
   try {
-    if (!hasSession(request)) {
-      return Response.json({ error: "UNAUTHORIZED", message: "سجّل الدخول أولاً لاستخدام التحويل ورصيد XP." }, { status: 401 });
-    }
-
     const body = await request.json();
     if (body?.confirmed !== true) {
       return Response.json({ error: "CONFIRMATION_REQUIRED", message: "يلزم تأكيد التحويل قبل الخصم." }, { status: 400 });
