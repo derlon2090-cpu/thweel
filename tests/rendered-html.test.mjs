@@ -34,7 +34,6 @@ test("app shell includes Quillora branding and XP flow", async () => {
   assert.match(app, /xp/);
   assert.match(app, /reserveXp/);
   assert.doesNotMatch(app, /localStorage/);
-  assert.match(app, /\/api\/humanize\/text\/analyze/);
   assert.match(app, /\/api\/humanize\/text\/confirm/);
   assert.match(app, /\/api\/humanize\/file\/analyze/);
   assert.match(app, /\/api\/humanize\/file\/confirm/);

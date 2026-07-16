@@ -494,25 +494,31 @@ function HomePage({
     if (!text.trim()) return notify("أدخل النص أولاً ثم ابدأ التحويل.");
     if (!reserveXp(xpCost)) return;
     setBusy(true);
-    try {
-      const analysis = await readApi(
-        await fetch("/api/humanize/text/analyze", {
-          method: "POST",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, tone, strength, preserveMeaning: true, noNewInfo: true, currentBalance: xp }),
-        }),
-      );
-      const summary = `عدد الكلمات: ${formatNumber(analysis.wordCount)}
+    const analysis = {
+      wordCount: words,
+      xpCost,
+      currentBalance: xp,
+      balanceAfter: xp - xpCost,
+      canProceed: xp - xpCost >= 0,
+      message: "رصيدك يكفي لإتمام التحويل. أكّد للمتابعة.",
+    };
+    const summary = `عدد الكلمات: ${formatNumber(analysis.wordCount)}
 تكلفة التحويل: ${formatNumber(analysis.xpCost)} XP
 رصيدك الحالي: ${formatNumber(analysis.currentBalance)} XP
 رصيدك بعد التحويل: ${formatNumber(analysis.balanceAfter)} XP
 
 ${analysis.message}`;
 
-      if (!analysis.canProceed) return notify(analysis.message);
-      if (!window.confirm(`${summary}\n\nهل تريد تأكيد التحويل؟`)) return notify("تم إلغاء التحويل بدون خصم XP.");
+    if (!analysis.canProceed) {
+      setBusy(false);
+      return notify(`رصيد XP غير كافٍ. تحتاج ${Math.abs(analysis.balanceAfter)} XP إضافية.`);
+    }
+    if (!window.confirm(`${summary}\n\nهل تريد تأكيد التحويل؟`)) {
+      setBusy(false);
+      return notify("تم إلغاء التحويل بدون خصم XP.");
+    }
 
+    try {
       const data = await readApi(
         await fetch("/api/humanize/text/confirm", {
           method: "POST",
