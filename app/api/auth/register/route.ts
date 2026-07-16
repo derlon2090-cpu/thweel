@@ -1,4 +1,3 @@
-import { Prisma } from "@/app/generated/prisma";
 import { prisma } from "@/src/lib/db";
 import { WELCOME_XP } from "@/src/lib/xp";
 import { hashPassword } from "@/src/server/auth/password";
@@ -41,7 +40,7 @@ export async function POST(request: Request) {
     await createUserSession(user.id);
     return json({ user: publicUser(user) }, { status: 201 });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
       return json({ error: "EMAIL_EXISTS", message: "هذا البريد مسجل مسبقاً." }, { status: 409 });
     }
     return apiError(error);

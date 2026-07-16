@@ -66,6 +66,7 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(migration, /CREATE TABLE "UserSession"/);
   assert.match(http, /ZodError/);
   assert.match(http, /MissingDatabaseUrlError/);
+  assert.doesNotMatch(http, /from "@\/app\/generated\/prisma"/);
   assert.match(http, /VALIDATION_ERROR/);
   assert.match(http, /DATABASE_UNAVAILABLE/);
   assert.match(layout, /Tajawal/);

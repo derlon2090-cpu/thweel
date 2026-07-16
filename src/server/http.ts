@@ -1,4 +1,3 @@
-import { Prisma } from "@/app/generated/prisma";
 import { MissingDatabaseUrlError } from "@/src/lib/database-url";
 import { ZodError } from "zod";
 
@@ -12,6 +11,14 @@ const SERVER_ERROR =
 
 export function json(data: unknown, init?: ResponseInit) {
   return Response.json(data, init);
+}
+
+function isPrismaInitializationError(error: unknown) {
+  return error instanceof Error && error.name === "PrismaClientInitializationError";
+}
+
+function isPrismaKnownCode(error: unknown, codes: string[]) {
+  return typeof error === "object" && error !== null && "code" in error && codes.includes(String(error.code));
 }
 
 export function apiError(error: unknown) {
@@ -28,7 +35,7 @@ export function apiError(error: unknown) {
     );
   }
 
-  if (error instanceof MissingDatabaseUrlError || error instanceof Prisma.PrismaClientInitializationError) {
+  if (error instanceof MissingDatabaseUrlError || isPrismaInitializationError(error)) {
     return json(
       {
         error: "DATABASE_UNAVAILABLE",
@@ -38,7 +45,7 @@ export function apiError(error: unknown) {
     );
   }
 
-  if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2021", "P2022", "P2024"].includes(error.code)) {
+  if (isPrismaKnownCode(error, ["P2021", "P2022", "P2024"])) {
     return json(
       {
         error: "DATABASE_NOT_READY",
