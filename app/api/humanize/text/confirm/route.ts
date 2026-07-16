@@ -70,7 +70,7 @@ function humanizeLocally(input: string, tone: string, strength: string) {
     [/كلماتنا/gu, "عباراتنا"],
     [/تعبر عن/gu, "تحمل"],
     [/الحروف/gu, "السطور"],
-    [/الفكر/gu, "الفكرة"],
+    [/الفكر(?!ة)/gu, "الفكرة"],
     [/وتثيره/gu, "وتحرّكها"],
   ];
 
@@ -96,6 +96,7 @@ function humanizeLocally(input: string, tone: string, strength: string) {
     })
     .filter(Boolean)
     .join("\n\n");
+  output = output.replace(/الفكرةة/gu, "الفكرة");
 
   if (output === original) {
     output = output
