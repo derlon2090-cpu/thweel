@@ -81,8 +81,8 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.doesNotMatch(http, /from "@\/app\/generated\/prisma"/);
   assert.match(http, /VALIDATION_ERROR/);
   assert.match(http, /DATABASE_UNAVAILABLE/);
-  assert.match(loginRoute, /@neondatabase\/serverless/);
-  assert.match(registerRoute, /@neondatabase\/serverless/);
+  assert.match(loginRoute, /source: "safe-auth"/);
+  assert.match(registerRoute, /source: "safe-auth"/);
   assert.doesNotMatch(textAnalyzeRoute, /@\/src\//);
   assert.doesNotMatch(textConfirmRoute, /@\/src\//);
   assert.doesNotMatch(fileAnalyzeRoute, /@\/src\/lib\/db/);
@@ -91,8 +91,8 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(registerRoute, /fallback-auth/);
   assert.match(textAnalyzeRoute, /fallback-humanize-api/);
   assert.match(textConfirmRoute, /fallback-humanize-api/);
-  assert.match(loginRoute, /source: "neon"/);
-  assert.match(registerRoute, /source: "neon"/);
+  assert.match(loginRoute, /fallback-auth/);
+  assert.match(registerRoute, /fallback-auth/);
   assert.match(fileAnalyzeRoute, /fallback-file-api/);
   assert.match(fileConfirmRoute, /fallback-file-api/);
   assert.match(fallbackSession, /fallback\./);
