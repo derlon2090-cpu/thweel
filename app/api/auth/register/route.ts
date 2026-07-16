@@ -1,5 +1,3 @@
-import { neon } from "@neondatabase/serverless";
-import bcrypt from "bcryptjs";
 import { createHmac, randomUUID } from "node:crypto";
 
 export const runtime = "nodejs";
@@ -87,6 +85,8 @@ export async function POST(request: Request) {
     try {
       const url = databaseUrl();
       if (!url) throw new Error("DATABASE_URL_MISSING");
+      const [{ neon }, bcrypt] = await Promise.all([import("@neondatabase/serverless"), import("bcryptjs")]);
+      const bcryptApi = bcrypt.default || bcrypt;
       const sql = neon(url);
       const existing = await sql`SELECT "id" FROM "Profile" WHERE "email" = ${email} LIMIT 1`;
       if (existing.length > 0) {
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       }
 
       const id = randomUUID();
-      const passwordHash = await bcrypt.hash(password, 12);
+      const passwordHash = await bcryptApi.hash(password, 12);
       const user = (await sql`
         INSERT INTO "Profile" ("id", "email", "fullName", "passwordHash", "xpBalance", "xpLevel", "totalXpUsed", "totalXpEarned", "createdAt", "updatedAt")
         VALUES (${id}, ${email}, ${fullName}, ${passwordHash}, ${WELCOME_XP}, 1, 0, ${WELCOME_XP}, NOW(), NOW())

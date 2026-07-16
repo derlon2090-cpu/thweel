@@ -1,5 +1,3 @@
-import { neon } from "@neondatabase/serverless";
-import bcrypt from "bcryptjs";
 import { createHmac, randomUUID } from "node:crypto";
 
 export const runtime = "nodejs";
@@ -86,6 +84,8 @@ export async function POST(request: Request) {
     try {
       const url = databaseUrl();
       if (!url) throw new Error("DATABASE_URL_MISSING");
+      const [{ neon }, bcrypt] = await Promise.all([import("@neondatabase/serverless"), import("bcryptjs")]);
+      const bcryptApi = bcrypt.default || bcrypt;
       const sql = neon(url);
       const users = await sql`
         SELECT "id", "email", "fullName", "passwordHash", "xpBalance", "xpLevel", "totalXpUsed", "totalXpEarned", "lastLoginAt", "createdAt"
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         LIMIT 1
       `;
       const user = users[0] as any;
-      if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      if (!user || !(await bcryptApi.compare(password, user.passwordHash))) {
         return Response.json({ error: "INVALID_CREDENTIALS", message: INVALID_LOGIN }, { status: 401 });
       }
 
