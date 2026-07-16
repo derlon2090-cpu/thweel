@@ -57,7 +57,8 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(databaseUrl, /POSTGRES_PRISMA_URL/);
   assert.match(databaseUrl, /POSTGRES_URL/);
   assert.match(databaseUrl, /MissingDatabaseUrlError/);
-  assert.match(db, /missingDatabaseProxy/);
+  assert.match(db, /await import\("@\/app\/generated\/prisma"\)/);
+  assert.doesNotMatch(db, /import \{ PrismaClient \}/);
   assert.match(prebuild, /prisma/);
   assert.match(prebuild, /migrate/);
   assert.match(prebuild, /deploy/);
