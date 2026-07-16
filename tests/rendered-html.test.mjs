@@ -43,7 +43,7 @@ test("app shell includes Quillora branding and XP flow", async () => {
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
-  const [databaseUrl, db, prebuild, migration, vercel, http, css, layout] = await Promise.all([
+  const [databaseUrl, db, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute] = await Promise.all([
     readFile(new URL("../src/lib/database-url.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/db.ts", import.meta.url), "utf8"),
     readFile(new URL("../scripts/prebuild.mjs", import.meta.url), "utf8"),
@@ -52,6 +52,8 @@ test("auth deployment has database setup and clear server errors", async () => {
     readFile(new URL("../src/server/http.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/auth/login/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/auth/register/route.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(databaseUrl, /POSTGRES_PRISMA_URL/);
@@ -70,6 +72,10 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.doesNotMatch(http, /from "@\/app\/generated\/prisma"/);
   assert.match(http, /VALIDATION_ERROR/);
   assert.match(http, /DATABASE_UNAVAILABLE/);
+  assert.match(loginRoute, /ensureDatabaseUrlEnv/);
+  assert.match(registerRoute, /ensureDatabaseUrlEnv/);
+  assert.doesNotMatch(loginRoute, /from "@\/src\/lib\/db"/);
+  assert.doesNotMatch(registerRoute, /from "@\/src\/lib\/db"/);
   assert.match(layout, /Tajawal/);
   assert.doesNotMatch(css, /\.auth-card h1[\s\S]{0,120}font-size:\s*48px/);
   assert.doesNotMatch(css, /textarea[\s\S]{0,160}font-size:\s*20px/);
