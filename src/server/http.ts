@@ -1,4 +1,5 @@
 import { Prisma } from "@/app/generated/prisma";
+import { MissingDatabaseUrlError } from "@/src/lib/database-url";
 import { ZodError } from "zod";
 
 const VALIDATION_FALLBACK = "\u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0645\u062f\u062e\u0644\u0629.";
@@ -27,7 +28,7 @@ export function apiError(error: unknown) {
     );
   }
 
-  if (error instanceof Prisma.PrismaClientInitializationError) {
+  if (error instanceof MissingDatabaseUrlError || error instanceof Prisma.PrismaClientInitializationError) {
     return json(
       {
         error: "DATABASE_UNAVAILABLE",

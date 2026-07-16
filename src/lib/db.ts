@@ -1,16 +1,27 @@
 import { PrismaClient } from "@/app/generated/prisma";
-import { ensureDatabaseUrlEnv } from "@/src/lib/database-url";
-
-ensureDatabaseUrlEnv();
+import { ensureDatabaseUrlEnv, MissingDatabaseUrlError } from "@/src/lib/database-url";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const databaseUrl = ensureDatabaseUrlEnv();
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
+function missingDatabaseProxy() {
+  return new Proxy(
+    {},
+    {
+      get() {
+        throw new MissingDatabaseUrlError();
+      },
+    },
+  ) as PrismaClient;
+}
 
-if (process.env.NODE_ENV !== "production") {
+export const prisma = databaseUrl
+  ? (globalForPrisma.prisma ??
+    new PrismaClient({
+      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    }))
+  : missingDatabaseProxy();
+
+if (databaseUrl && process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }

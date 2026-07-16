@@ -43,8 +43,9 @@ test("app shell includes Quillora branding and XP flow", async () => {
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
-  const [databaseUrl, prebuild, migration, vercel, http, css, layout] = await Promise.all([
+  const [databaseUrl, db, prebuild, migration, vercel, http, css, layout] = await Promise.all([
     readFile(new URL("../src/lib/database-url.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/db.ts", import.meta.url), "utf8"),
     readFile(new URL("../scripts/prebuild.mjs", import.meta.url), "utf8"),
     readFile(new URL("../prisma/migrations/0001_init/migration.sql", import.meta.url), "utf8"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
@@ -55,6 +56,8 @@ test("auth deployment has database setup and clear server errors", async () => {
 
   assert.match(databaseUrl, /POSTGRES_PRISMA_URL/);
   assert.match(databaseUrl, /POSTGRES_URL/);
+  assert.match(databaseUrl, /MissingDatabaseUrlError/);
+  assert.match(db, /missingDatabaseProxy/);
   assert.match(prebuild, /prisma/);
   assert.match(prebuild, /migrate/);
   assert.match(prebuild, /deploy/);
@@ -62,6 +65,7 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(migration, /CREATE TABLE "Profile"/);
   assert.match(migration, /CREATE TABLE "UserSession"/);
   assert.match(http, /ZodError/);
+  assert.match(http, /MissingDatabaseUrlError/);
   assert.match(http, /VALIDATION_ERROR/);
   assert.match(http, /DATABASE_UNAVAILABLE/);
   assert.match(layout, /Tajawal/);
