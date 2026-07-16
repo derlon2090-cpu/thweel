@@ -73,12 +73,12 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.doesNotMatch(http, /from "@\/app\/generated\/prisma"/);
   assert.match(http, /VALIDATION_ERROR/);
   assert.match(http, /DATABASE_UNAVAILABLE/);
-  assert.match(loginRoute, /ensureDatabaseUrlEnv/);
-  assert.match(registerRoute, /ensureDatabaseUrlEnv/);
-  assert.doesNotMatch(loginRoute, /from "@\/src\/lib\/db"/);
-  assert.doesNotMatch(registerRoute, /from "@\/src\/lib\/db"/);
-  assert.match(loginRoute, /createFallbackSession/);
-  assert.match(registerRoute, /createFallbackSession/);
+  assert.doesNotMatch(loginRoute, /@\/src\//);
+  assert.doesNotMatch(registerRoute, /@\/src\//);
+  assert.match(loginRoute, /fallback-auth/);
+  assert.match(registerRoute, /fallback-auth/);
+  assert.match(loginRoute, /Set-Cookie/);
+  assert.match(registerRoute, /Set-Cookie/);
   assert.match(fallbackSession, /fallback\./);
   assert.match(fallbackSession, /WELCOME_XP/);
   assert.match(layout, /Tajawal/);
