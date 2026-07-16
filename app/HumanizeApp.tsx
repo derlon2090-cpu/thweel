@@ -1164,7 +1164,7 @@ function LoginPage({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      const data = await readApi(await fetch("/api/auth/login", {
+      const data = await readApi(await fetch("/api/session/login", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -1210,7 +1210,7 @@ function RegisterPage({
     const form = new FormData(event.currentTarget);
     if (form.get("password") !== form.get("passwordConfirm")) return notify("كلمة المرور وتأكيدها غير متطابقين.");
     try {
-      const data = await readApi(await fetch("/api/auth/register", {
+      const data = await readApi(await fetch("/api/session/register", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },

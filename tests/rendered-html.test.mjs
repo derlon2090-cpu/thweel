@@ -37,6 +37,8 @@ test("app shell includes Quillora branding and XP flow", async () => {
   assert.match(app, /\/api\/humanize\/text\/confirm/);
   assert.match(app, /\/api\/humanize\/file\/analyze/);
   assert.match(app, /\/api\/humanize\/file\/confirm/);
+  assert.match(app, /\/api\/session\/login/);
+  assert.match(app, /\/api\/session\/register/);
   assert.match(app, /\/login/);
   assert.match(app, /\/register/);
   assert.match(app, /clientFallbackUser/);
@@ -47,7 +49,7 @@ test("app shell includes Quillora branding and XP flow", async () => {
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
-  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute, textAnalyzeRoute, textConfirmRoute, fileAnalyzeRoute, fileConfirmRoute] = await Promise.all([
+  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute, sessionLoginRoute, sessionRegisterRoute, textAnalyzeRoute, textConfirmRoute, fileAnalyzeRoute, fileConfirmRoute] = await Promise.all([
     readFile(new URL("../src/lib/database-url.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/db.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/server/auth/fallback-session.ts", import.meta.url), "utf8"),
@@ -59,6 +61,8 @@ test("auth deployment has database setup and clear server errors", async () => {
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/auth/login/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/auth/register/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/session/login/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/session/register/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/humanize/text/analyze/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/humanize/text/confirm/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/humanize/file/analyze/route.ts", import.meta.url), "utf8"),
@@ -83,6 +87,8 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(http, /DATABASE_UNAVAILABLE/);
   assert.match(loginRoute, /source: "safe-auth"/);
   assert.match(registerRoute, /source: "safe-auth"/);
+  assert.match(sessionLoginRoute, /safe-session/);
+  assert.match(sessionRegisterRoute, /safe-session/);
   assert.doesNotMatch(textAnalyzeRoute, /@\/src\//);
   assert.doesNotMatch(textConfirmRoute, /@\/src\//);
   assert.doesNotMatch(fileAnalyzeRoute, /@\/src\/lib\/db/);
