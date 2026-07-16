@@ -40,6 +40,8 @@ test("app shell includes Quillora branding and XP flow", async () => {
   assert.match(app, /\/api\/humanize\/file\/confirm/);
   assert.match(app, /\/login/);
   assert.match(app, /\/register/);
+  assert.match(app, /clientFallbackUser/);
+  assert.match(app, /quillora_session=client_fallback/);
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
