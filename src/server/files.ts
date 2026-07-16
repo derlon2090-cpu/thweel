@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { inflateSync } from "node:zlib";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -46,6 +47,103 @@ function roughDocxXmlFallback(buffer: Buffer) {
   return extractXmlText(text.slice(documentStart, documentEnd + "</w:document>".length));
 }
 
+function decodePdfEscapedString(input: string) {
+  return input
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\\t/g, " ")
+    .replace(/\\\(/g, "(")
+    .replace(/\\\)/g, ")")
+    .replace(/\\\\/g, "\\");
+}
+
+function extractPdfTextFromStream(stream: Buffer) {
+  const candidates: string[] = [];
+  const asLatin = stream.toString("latin1");
+  const literalMatches = asLatin.matchAll(/\((?:\\.|[^\\)]){2,}\)\s*Tj/g);
+  for (const match of literalMatches) {
+    const raw = match[0].replace(/\)\s*Tj$/, "").slice(1);
+    candidates.push(decodePdfEscapedString(raw));
+  }
+
+  const arrayMatches = asLatin.matchAll(/\[([\s\S]*?)\]\s*TJ/g);
+  for (const match of arrayMatches) {
+    const parts = [...match[1].matchAll(/\((?:\\.|[^\\)])+\)/g)].map((part) => decodePdfEscapedString(part[0].slice(1, -1)));
+    if (parts.length) candidates.push(parts.join(""));
+  }
+
+  const hexMatches = asLatin.matchAll(/<([0-9A-Fa-f\s]{4,})>\s*Tj/g);
+  for (const match of hexMatches) {
+    const hex = match[1].replace(/\s+/g, "");
+    try {
+      candidates.push(Buffer.from(hex, "hex").toString("utf16le"));
+      candidates.push(Buffer.from(hex, "hex").toString("utf8"));
+    } catch {
+      // Ignore malformed PDF text fragments.
+    }
+  }
+
+  return candidates.join("\n");
+}
+
+function roughPdfTextFallback(buffer: Buffer) {
+  const chunks: string[] = [];
+  const source = buffer.toString("latin1");
+  const streamMatches = source.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g);
+  for (const match of streamMatches) {
+    const raw = Buffer.from(match[1], "latin1");
+    chunks.push(extractPdfTextFromStream(raw));
+    try {
+      chunks.push(extractPdfTextFromStream(inflateSync(raw)));
+    } catch {
+      // Not every PDF stream is flate-compressed.
+    }
+  }
+
+  return chunks
+    .join("\n")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]+/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function extractPdfWithOpenAIOcr(file: File, buffer: Buffer) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return "";
+
+  const OpenAI = (await import("openai")).default;
+  const client = new OpenAI({ apiKey });
+  const uploaded = await client.files.create({
+    file: new File([new Uint8Array(buffer)], file.name || "document.pdf", { type: file.type || "application/pdf" }),
+    purpose: "assistants",
+  });
+
+  try {
+    const response = await (client as any).responses.create({
+      model: process.env.OPENAI_OCR_MODEL || process.env.OPENAI_TEXT_MODEL || "gpt-4.1-mini",
+      temperature: 0,
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "استخرج النص المقروء من ملف PDF كما هو قدر الإمكان. لا تلخص، لا تشرح، ولا تضف معلومات. إذا لم تجد نصاً مقروءاً فأعد نصاً فارغاً فقط.",
+            },
+            { type: "input_file", file_id: uploaded.id },
+          ],
+        },
+      ],
+    });
+
+    return String(response.output_text || "").trim();
+  } finally {
+    await client.files.delete(uploaded.id).catch(() => undefined);
+  }
+}
+
 export async function extractTextFromUpload(file: File) {
   if (file.size > MAX_FILE_SIZE) {
     throw new FileTextExtractionError("FILE_TOO_LARGE", "حجم الملف يتجاوز الحد الأقصى 20MB.", 413);
@@ -65,17 +163,25 @@ export async function extractTextFromUpload(file: File) {
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       try {
-      const parsed = await parser.getText();
-        return parsed.text;
+        const parsed = await parser.getText();
+        if (parsed.text.trim()) return parsed.text;
       } finally {
         await parser.destroy();
       }
     } catch {
-      throw new FileTextExtractionError(
-        "PDF_TEXT_EXTRACTION_FAILED",
-        "تعذر استخراج نص من ملف PDF. إذا كان الملف صورة أو مسحاً ضوئياً فحوّله إلى نص أولاً ثم ارفعه بصيغة TXT أو DOCX.",
-      );
+      // Continue to fallback extractors below.
     }
+
+    const roughText = roughPdfTextFallback(buffer);
+    if (roughText) return roughText;
+
+    const ocrText = await extractPdfWithOpenAIOcr(file, buffer);
+    if (ocrText) return ocrText;
+
+    throw new FileTextExtractionError(
+      "PDF_OCR_REQUIRED",
+      "هذا PDF مصوّر ولا يحتوي نصاً قابلاً للنسخ. فعّل OPENAI_API_KEY في Vercel ليعمل OCR تلقائياً، أو ارفع ملفاً نصياً TXT/DOCX.",
+    );
   }
 
   if (
