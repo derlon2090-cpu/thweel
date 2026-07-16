@@ -43,9 +43,10 @@ test("app shell includes Quillora branding and XP flow", async () => {
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
-  const [databaseUrl, db, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute] = await Promise.all([
+  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute] = await Promise.all([
     readFile(new URL("../src/lib/database-url.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/db.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/server/auth/fallback-session.ts", import.meta.url), "utf8"),
     readFile(new URL("../scripts/prebuild.mjs", import.meta.url), "utf8"),
     readFile(new URL("../prisma/migrations/0001_init/migration.sql", import.meta.url), "utf8"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
@@ -76,6 +77,10 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(registerRoute, /ensureDatabaseUrlEnv/);
   assert.doesNotMatch(loginRoute, /from "@\/src\/lib\/db"/);
   assert.doesNotMatch(registerRoute, /from "@\/src\/lib\/db"/);
+  assert.match(loginRoute, /createFallbackSession/);
+  assert.match(registerRoute, /createFallbackSession/);
+  assert.match(fallbackSession, /fallback\./);
+  assert.match(fallbackSession, /WELCOME_XP/);
   assert.match(layout, /Tajawal/);
   assert.doesNotMatch(css, /\.auth-card h1[\s\S]{0,120}font-size:\s*48px/);
   assert.doesNotMatch(css, /textarea[\s\S]{0,160}font-size:\s*20px/);

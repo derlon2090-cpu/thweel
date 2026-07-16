@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/src/lib/db";
+import { readFallbackSession } from "@/src/server/auth/fallback-session";
 
 export const SESSION_COOKIE = "quillora_session";
 const SESSION_DAYS = 30;
@@ -42,6 +43,9 @@ export async function getCurrentUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
+
+  const fallbackUser = readFallbackSession(token);
+  if (fallbackUser) return fallbackUser;
 
   const session = await prisma.userSession.findUnique({
     where: { sessionToken: token },

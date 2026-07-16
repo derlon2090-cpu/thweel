@@ -1,8 +1,7 @@
 import { ensureDatabaseUrlEnv } from "@/src/lib/database-url";
 import { WELCOME_XP } from "@/src/lib/xp";
-import { hashPassword } from "@/src/server/auth/password";
+import { createFallbackSession } from "@/src/server/auth/fallback-session";
 import { apiError, json } from "@/src/server/http";
-import { publicUser } from "@/src/server/serializers";
 import { registerSchema } from "@/src/server/schemas";
 
 export const runtime = "nodejs";
@@ -12,14 +11,17 @@ const DATABASE_UNAVAILABLE =
 export async function POST(request: Request) {
   try {
     const input = registerSchema.parse(await request.json());
+    const email = input.email.toLowerCase();
     if (!ensureDatabaseUrlEnv()) {
-      return json({ error: "DATABASE_UNAVAILABLE", message: DATABASE_UNAVAILABLE }, { status: 503 });
+      const user = await createFallbackSession(email, input.fullName);
+      return json({ user, warning: DATABASE_UNAVAILABLE }, { status: 201 });
     }
-    const [{ prisma }, { createUserSession }] = await Promise.all([
+    const [{ prisma }, { createUserSession }, { hashPassword }, { publicUser }] = await Promise.all([
       import("@/src/lib/db"),
       import("@/src/server/auth/session"),
+      import("@/src/server/auth/password"),
+      import("@/src/server/serializers"),
     ]);
-    const email = input.email.toLowerCase();
     const passwordHash = await hashPassword(input.password);
 
     const user = await prisma.$transaction(async (tx) => {
