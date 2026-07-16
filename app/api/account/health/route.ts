@@ -16,9 +16,11 @@ export async function GET() {
   if (!url) {
     return Response.json({
       ok: false,
+      runtime: "edge",
       databaseConfigured: false,
       connected: false,
-      message: "DATABASE_URL غير موجود في بيئة النشر.",
+      vercelEnv: process.env.VERCEL_ENV || null,
+      message: "DATABASE_URL غير ظاهر داخل بيئة النشر الحالية لهذا الرابط.",
     });
   }
 
@@ -35,8 +37,10 @@ export async function GET() {
     `;
     return Response.json({
       ok: Boolean(result[0]?.profileReady && result[0]?.sessionReady && result[0]?.xpReady),
+      runtime: "edge",
       databaseConfigured: true,
       connected: true,
+      vercelEnv: process.env.VERCEL_ENV || null,
       tables: result[0],
       message: "Neon متصل والجداول الأساسية جاهزة.",
     });
@@ -44,8 +48,10 @@ export async function GET() {
     const message = error instanceof Error ? error.message : "تعذر الاتصال بقاعدة البيانات.";
     return Response.json({
       ok: false,
+      runtime: "edge",
       databaseConfigured: true,
       connected: false,
+      vercelEnv: process.env.VERCEL_ENV || null,
       message,
     }, { status: 503 });
   }
