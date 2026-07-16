@@ -57,6 +57,29 @@ function decodePdfEscapedString(input: string) {
     .replace(/\\\\/g, "\\");
 }
 
+function usefulTextScore(input: string) {
+  const cleaned = input.trim();
+  if (cleaned.length < 2) return 0;
+  const useful = (cleaned.match(/[\p{Script=Arabic}A-Za-z0-9 .,;:!?()\-\n]/gu) || []).length;
+  const letters = (cleaned.match(/[\p{L}\p{N}]/gu) || []).length;
+  return (useful / cleaned.length) * 0.7 + Math.min(letters / 20, 1) * 0.3;
+}
+
+function decodePdfHexText(hex: string) {
+  const bytes = Buffer.from(hex, "hex");
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    const chars: string[] = [];
+    for (let index = 2; index + 1 < bytes.length; index += 2) {
+      chars.push(String.fromCharCode((bytes[index] << 8) | bytes[index + 1]));
+    }
+    return chars.join("");
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return bytes.subarray(2).toString("utf16le");
+  }
+  return bytes.toString("utf8");
+}
+
 function extractPdfTextFromStream(stream: Buffer) {
   const candidates: string[] = [];
   const asLatin = stream.toString("latin1");
@@ -76,14 +99,13 @@ function extractPdfTextFromStream(stream: Buffer) {
   for (const match of hexMatches) {
     const hex = match[1].replace(/\s+/g, "");
     try {
-      candidates.push(Buffer.from(hex, "hex").toString("utf16le"));
-      candidates.push(Buffer.from(hex, "hex").toString("utf8"));
+      candidates.push(decodePdfHexText(hex));
     } catch {
       // Ignore malformed PDF text fragments.
     }
   }
 
-  return candidates.join("\n");
+  return candidates.filter((candidate) => usefulTextScore(candidate) > 0.45).join("\n");
 }
 
 function roughPdfTextFallback(buffer: Buffer) {
