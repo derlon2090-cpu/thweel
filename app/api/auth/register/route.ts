@@ -1,51 +1,14 @@
-import { createHmac } from "node:crypto";
+import { prisma } from "@/src/lib/db";
+import { WELCOME_XP } from "@/src/lib/xp";
+import { createFallbackSession } from "@/src/server/auth/fallback-session";
+import { hashPassword } from "@/src/server/auth/password";
+import { createUserSession } from "@/src/server/auth/session";
+import { publicUser } from "@/src/server/serializers";
 
 export const runtime = "nodejs";
 
-const WELCOME_XP = 50;
-const SESSION_COOKIE = "quillora_session";
-const FALLBACK_DAYS = 30;
 const REGISTER_ERROR =
   "\u0623\u062f\u062e\u0644 \u0627\u0633\u0645\u0627\u064b \u0648\u0628\u0631\u064a\u062f\u0627\u064b \u0648\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0644\u0627 \u062a\u0642\u0644 \u0639\u0646 8 \u0623\u062d\u0631\u0641.";
-
-function secret() {
-  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || "quillora-fallback-session";
-}
-
-function sign(payload: string) {
-  return createHmac("sha256", secret()).update(payload).digest("base64url");
-}
-
-function cookieValue(email: string, fullName: string) {
-  const payload = {
-    id: `fallback_${Buffer.from(email).toString("base64url").slice(0, 18)}`,
-    email,
-    fullName,
-    exp: Date.now() + FALLBACK_DAYS * 24 * 60 * 60 * 1000,
-  };
-  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  return `fallback.${encoded}.${sign(encoded)}`;
-}
-
-function sessionCookie(token: string) {
-  const maxAge = FALLBACK_DAYS * 24 * 60 * 60;
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
-function publicUser(email: string, fullName: string) {
-  return {
-    id: `fallback_${Buffer.from(email).toString("base64url").slice(0, 18)}`,
-    email,
-    fullName,
-    xpBalance: WELCOME_XP,
-    xpLevel: 1,
-    totalXpUsed: 0,
-    totalXpEarned: WELCOME_XP,
-    createdAt: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
-  };
-}
 
 export async function POST(request: Request) {
   try {
@@ -57,17 +20,42 @@ export async function POST(request: Request) {
       return Response.json({ error: "VALIDATION_ERROR", message: REGISTER_ERROR }, { status: 400 });
     }
 
-    const token = cookieValue(email, fullName);
-    return Response.json(
-      {
-        user: publicUser(email, fullName),
-        warning: "fallback-auth",
-      },
-      {
-        status: 201,
-        headers: { "Set-Cookie": sessionCookie(token) },
-      },
-    );
+    try {
+      const passwordHash = await hashPassword(password);
+      const user = await prisma.profile.create({
+        data: {
+          email,
+          fullName,
+          passwordHash,
+          xpBalance: WELCOME_XP,
+          xpLevel: 1,
+          totalXpEarned: WELCOME_XP,
+          totalXpUsed: 0,
+        },
+      });
+
+      await prisma.xpTransaction
+        .create({
+          data: {
+            userId: user.id,
+            type: "WELCOME_BONUS",
+            amount: WELCOME_XP,
+            balanceAfter: WELCOME_XP,
+            description: "\u0631\u0635\u064a\u062f \u062a\u0631\u062d\u064a\u0628\u064a \u0645\u062c\u0627\u0646\u064a",
+          },
+        })
+        .catch(() => null);
+
+      await createUserSession(user.id);
+      return Response.json({ user: publicUser(user), source: "neon" }, { status: 201 });
+    } catch (databaseError: any) {
+      if (databaseError?.code === "P2002") {
+        return Response.json({ error: "EMAIL_EXISTS", message: "\u0647\u0630\u0627 \u0627\u0644\u0628\u0631\u064a\u062f \u0645\u0633\u062c\u0644 \u0645\u0633\u0628\u0642\u0627\u064b. \u0633\u062c\u0651\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0628\u062f\u0644\u0627\u064b \u0645\u0646 \u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628 \u062c\u062f\u064a\u062f." }, { status: 409 });
+      }
+      console.error("[quillora] Neon register failed; using fallback session.", databaseError);
+      const fallbackUser = await createFallbackSession(email, fullName);
+      return Response.json({ user: publicUser(fallbackUser), warning: "fallback-auth" }, { status: 201 });
+    }
   } catch {
     return Response.json({ error: "VALIDATION_ERROR", message: REGISTER_ERROR }, { status: 400 });
   }

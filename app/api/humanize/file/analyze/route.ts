@@ -1,32 +1,28 @@
-import { prisma } from "@/src/lib/db";
 import { detectLanguage } from "@/src/lib/language";
 import { calculateFileXpCost, countArabicAwareWords, getFileWordLimit, isLargeFile } from "@/src/lib/xp";
-import { requireUser } from "@/src/server/auth/session";
-import { extractTextFromUpload, saveUploadedFile } from "@/src/server/files";
-import { apiError, json } from "@/src/server/http";
-import { publicJob } from "@/src/server/serializers";
+import { extractTextFromUpload } from "@/src/server/files";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser();
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {
-      return json({ error: "FILE_REQUIRED", message: "اختر ملفاً للتحليل." }, { status: 400 });
+      return Response.json({ error: "FILE_REQUIRED", message: "\u0627\u062e\u062a\u0631 \u0645\u0644\u0641\u0627\u064b \u0644\u0644\u062a\u062d\u0644\u064a\u0644." }, { status: 400 });
     }
 
-    const outputFormat = String(form.get("outputFormat") ?? "docx").toUpperCase();
-    const tone = String(form.get("tone") ?? "سردي طبيعي");
-    const strength = String(form.get("strength") ?? "متوسط");
+    const outputFormat = String(form.get("outputFormat") ?? "DOCX").toUpperCase();
+    const tone = String(form.get("tone") ?? "\u0633\u0631\u062f\u064a \u0637\u0628\u064a\u0639\u064a");
+    const strength = String(form.get("strength") ?? "\u0645\u062a\u0648\u0633\u0637");
+    const currentBalance = Math.max(Number(form.get("currentBalance") ?? 50) || 0, 0);
     const extractedText = (await extractTextFromUpload(file)).trim();
     const wordCount = countArabicAwareWords(extractedText);
     if (wordCount === 0) {
-      return json({
+      return Response.json({
         error: "NO_EXTRACTABLE_TEXT",
-        message: "لم نتمكن من استخراج نص قابل للتحويل. قد يكون الملف PDF مصوراً ويحتاج OCR.",
+        message: "\u0644\u0645 \u0646\u062a\u0645\u0643\u0646 \u0645\u0646 \u0627\u0633\u062a\u062e\u0631\u0627\u062c \u0646\u0635 \u0642\u0627\u0628\u0644 \u0644\u0644\u062a\u062d\u0648\u064a\u0644. \u0642\u062f \u064a\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0641 PDF \u0645\u0635\u0648\u0631\u0627\u064b \u0648\u064a\u062d\u062a\u0627\u062c OCR.",
       }, { status: 422 });
     }
 
@@ -34,63 +30,52 @@ export async function POST(request: Request) {
     const xpCost = calculateFileXpCost(wordCount);
     const wordLimit = getFileWordLimit("free");
     const limitExceeded = wordCount > wordLimit;
-    const balanceAfter = user.xpBalance - xpCost;
+    const balanceAfter = currentBalance - xpCost;
     const canProceed = !limitExceeded && balanceAfter >= 0;
-    const storagePath = await saveUploadedFile(user.id, file);
+    const now = new Date().toISOString();
 
-    const job = await prisma.humanizeJob.create({
-      data: {
-        userId: user.id,
-        type: "FILE",
-        status: "AWAITING_CONFIRMATION",
+    return Response.json({
+      job: {
+        id: `fallback_file_${Date.now()}`,
+        type: "file",
+        status: "awaiting_confirmation",
         title: file.name,
         inputText: extractedText.slice(0, 50000),
         tone,
         strength,
-        sourceFormat: file.name.split(".").pop()?.toUpperCase(),
         outputFormat,
         fileName: file.name,
         fileSize: file.size,
         wordCount,
         xpCost,
         detectedLanguage,
-        progress: 10,
-        progressMessage: "تم استخراج النص وحساب التكلفة",
-        files: {
-          create: {
-            userId: user.id,
-            kind: "INPUT",
-            fileName: file.name,
-            mimeType: file.type || "application/octet-stream",
-            size: file.size,
-            storagePath,
-          },
-        },
+        createdAt: now,
       },
-    });
-
-    return json({
-      job: publicJob(job),
-      jobId: job.id,
+      jobId: `fallback_file_${Date.now()}`,
+      inputText: extractedText.slice(0, 50000),
       status: limitExceeded ? "plan_limit_exceeded" : canProceed ? "awaiting_confirmation" : "insufficient_xp",
       fileName: file.name,
       fileSizeMb: Number((file.size / 1024 / 1024).toFixed(2)),
+      fileSize: file.size,
+      outputFormat,
       detectedLanguage,
       wordCount,
       xpCost,
-      currentBalance: user.xpBalance,
+      currentBalance,
       balanceAfter,
       canProceed,
       missingXp: balanceAfter < 0 ? Math.abs(balanceAfter) : 0,
       largeFile: isLargeFile(wordCount),
       wordLimit,
+      warning: "fallback-file-api",
       message: limitExceeded
-        ? `هذا الملف يتجاوز حد الباقة المجانية: ${wordLimit} كلمة.`
+        ? `\u0647\u0630\u0627 \u0627\u0644\u0645\u0644\u0641 \u064a\u062a\u062c\u0627\u0648\u0632 \u062d\u062f \u0627\u0644\u0628\u0627\u0642\u0629 \u0627\u0644\u0645\u062c\u0627\u0646\u064a\u0629: ${wordLimit} \u0643\u0644\u0645\u0629.`
         : canProceed
-          ? "تم تحليل الملف. أكّد التحويل للمتابعة بدون أي خصم قبل التأكيد."
-          : `رصيد XP غير كافٍ. تحتاج إلى ${Math.abs(balanceAfter)} XP إضافية.`,
+          ? "\u062a\u0645 \u062a\u062d\u0644\u064a\u0644 \u0627\u0644\u0645\u0644\u0641. \u0623\u0643\u0651\u062f \u0627\u0644\u062a\u062d\u0648\u064a\u0644 \u0644\u0644\u0645\u062a\u0627\u0628\u0639\u0629 \u0628\u062f\u0648\u0646 \u0623\u064a \u062e\u0635\u0645 \u0642\u0628\u0644 \u0627\u0644\u062a\u0623\u0643\u064a\u062f."
+          : `\u0631\u0635\u064a\u062f XP \u063a\u064a\u0631 \u0643\u0627\u0641\u064d. \u062a\u062d\u062a\u0627\u062c \u0625\u0644\u0649 ${Math.abs(balanceAfter)} XP \u0625\u0636\u0627\u0641\u064a\u0629.`,
     });
   } catch (error) {
-    return apiError(error);
+    console.error("[quillora] File analyze failed.", error);
+    return Response.json({ error: "FILE_ANALYZE_FAILED", message: "\u062a\u0639\u0630\u0631 \u062a\u0634\u063a\u064a\u0644 \u062e\u062f\u0645\u0629 \u0627\u0644\u0645\u0644\u0641\u0627\u062a \u0627\u0644\u0622\u0646." }, { status: 500 });
   }
 }

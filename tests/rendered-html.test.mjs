@@ -47,7 +47,7 @@ test("app shell includes Quillora branding and XP flow", async () => {
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
-  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute, textAnalyzeRoute, textConfirmRoute] = await Promise.all([
+  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute, textAnalyzeRoute, textConfirmRoute, fileAnalyzeRoute, fileConfirmRoute] = await Promise.all([
     readFile(new URL("../src/lib/database-url.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/db.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/server/auth/fallback-session.ts", import.meta.url), "utf8"),
@@ -61,6 +61,8 @@ test("auth deployment has database setup and clear server errors", async () => {
     readFile(new URL("../app/api/auth/register/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/humanize/text/analyze/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/humanize/text/confirm/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/humanize/file/analyze/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/humanize/file/confirm/route.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(databaseUrl, /POSTGRES_PRISMA_URL/);
@@ -79,19 +81,23 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.doesNotMatch(http, /from "@\/app\/generated\/prisma"/);
   assert.match(http, /VALIDATION_ERROR/);
   assert.match(http, /DATABASE_UNAVAILABLE/);
-  assert.doesNotMatch(loginRoute, /@\/src\//);
-  assert.doesNotMatch(registerRoute, /@\/src\//);
+  assert.match(loginRoute, /@\/src\/lib\/db/);
+  assert.match(registerRoute, /@\/src\/lib\/db/);
   assert.doesNotMatch(textAnalyzeRoute, /@\/src\//);
   assert.doesNotMatch(textConfirmRoute, /@\/src\//);
+  assert.doesNotMatch(fileAnalyzeRoute, /@\/src\/lib\/db/);
+  assert.doesNotMatch(fileConfirmRoute, /@\/src\/lib\/db/);
   assert.match(loginRoute, /fallback-auth/);
   assert.match(registerRoute, /fallback-auth/);
   assert.match(textAnalyzeRoute, /fallback-humanize-api/);
   assert.match(textConfirmRoute, /fallback-humanize-api/);
-  assert.match(loginRoute, /Set-Cookie/);
-  assert.match(registerRoute, /Set-Cookie/);
+  assert.match(loginRoute, /source: "neon"/);
+  assert.match(registerRoute, /source: "neon"/);
+  assert.match(fileAnalyzeRoute, /fallback-file-api/);
+  assert.match(fileConfirmRoute, /fallback-file-api/);
   assert.match(fallbackSession, /fallback\./);
   assert.match(fallbackSession, /WELCOME_XP/);
-  assert.match(layout, /Tajawal/);
+  assert.doesNotMatch(layout, /next\/font\/google/);
   assert.doesNotMatch(css, /\.auth-card h1[\s\S]{0,120}font-size:\s*48px/);
   assert.doesNotMatch(css, /textarea[\s\S]{0,160}font-size:\s*20px/);
 });

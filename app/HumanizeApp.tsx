@@ -406,6 +406,7 @@ export function HumanizeApp({ initialRoute }: { initialRoute: Route }) {
           refreshAccount={refreshAccount}
           notify={notify}
           deleteJob={deleteJob}
+          completeLocalJob={completeLocalJob}
         />
       )}
       {route === "/history" && <HistoryPage jobs={jobs} deleteJob={deleteJob} />}
@@ -814,6 +815,7 @@ function FilesPage({
   refreshAccount,
   notify,
   deleteJob,
+  completeLocalJob,
 }: {
   jobs: Job[];
   xp: number;
@@ -822,6 +824,7 @@ function FilesPage({
   refreshAccount: () => Promise<void>;
   notify: (message: string) => void;
   deleteJob: (id: string) => void;
+  completeLocalJob: (job: Job, xpCost: number) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [format, setFormat] = useState("DOCX");
@@ -853,6 +856,7 @@ function FilesPage({
       form.append("tone", tone);
       form.append("strength", strength);
       form.append("outputFormat", format);
+      form.append("currentBalance", String(xp));
       const analysis = await readApi(await fetch("/api/humanize/file/analyze", { method: "POST", credentials: "include", body: form }));
       const summary = `اسم الملف: ${analysis.fileName}
 عدد الكلمات المستخرجة: ${formatNumber(analysis.wordCount)}
@@ -869,10 +873,21 @@ ${analysis.message}`;
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ jobId: analysis.jobId, confirmed: true, tone, strength, outputFormat: format }),
+          body: JSON.stringify({
+            jobId: analysis.jobId,
+            inputText: analysis.inputText,
+            confirmed: true,
+            tone,
+            strength,
+            outputFormat: format,
+            fileName: analysis.fileName,
+            fileSize: analysis.fileSize,
+            currentBalance: xp,
+          }),
         }),
       );
       setProgress(100);
+      if (data.job) completeLocalJob(mapApiJob(data.job), data.job.xpCost || analysis.xpCost || estimatedXp);
       applyUser(data.user);
       await refreshAccount();
       notify("اكتمل تحويل الملف وأصبح جاهزاً للتحميل من السجل.");
