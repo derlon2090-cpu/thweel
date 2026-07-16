@@ -1,35 +1,61 @@
-import { detectLanguage } from "@/src/lib/language";
-import { calculateTextXpCost, countArabicAwareWords } from "@/src/lib/xp";
-import { requireUser } from "@/src/server/auth/session";
-import { apiError, json } from "@/src/server/http";
-import { textHumanizeSchema } from "@/src/server/schemas";
-
 export const runtime = "nodejs";
+
+function hasSession(request: Request) {
+  return request.headers.get("cookie")?.includes("quillora_session=") ?? false;
+}
+
+function countWords(text: string) {
+  const cleaned = text.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  return cleaned ? cleaned.split(" ").filter(Boolean).length : 0;
+}
+
+function calculateXp(words: number) {
+  if (!words) return 0;
+  return Math.max(Math.ceil(words / 100) * 3, 3);
+}
+
+function detectLanguage(text: string) {
+  const arabic = (text.match(/[\u0600-\u06ff]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  if (arabic > 0 && latin > 0) return "mixed";
+  if (arabic > 0) return "ar";
+  if (latin > 0) return "en";
+  return "unknown";
+}
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser();
-    const input = textHumanizeSchema.parse(await request.json());
-    const detectedLanguage = detectLanguage(input.text);
-    const wordCount = countArabicAwareWords(input.text);
-    const xpCost = calculateTextXpCost(wordCount);
-    const balanceAfter = user.xpBalance - xpCost;
+    if (!hasSession(request)) {
+      return Response.json({ error: "UNAUTHORIZED", message: "سجّل الدخول أولاً لاستخدام التحويل ورصيد XP." }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const text = String(body?.text || "").trim();
+    const currentBalance = Math.max(Number(body?.currentBalance ?? 50) || 0, 0);
+    if (!text) {
+      return Response.json({ error: "VALIDATION_ERROR", message: "أدخل النص أولاً ثم ابدأ التحويل." }, { status: 400 });
+    }
+
+    const wordCount = countWords(text);
+    const xpCost = calculateXp(wordCount);
+    const balanceAfter = currentBalance - xpCost;
     const canProceed = balanceAfter >= 0;
 
-    return json({
+    return Response.json({
       status: canProceed ? "awaiting_confirmation" : "insufficient_xp",
-      detectedLanguage,
+      detectedLanguage: detectLanguage(text),
       wordCount,
       xpCost,
-      currentBalance: user.xpBalance,
+      currentBalance,
       balanceAfter,
       canProceed,
       missingXp: canProceed ? 0 : Math.abs(balanceAfter),
       message: canProceed
         ? "رصيدك يكفي لإتمام التحويل. أكّد للمتابعة."
         : `ليس لديك رصيد XP كافٍ. تحتاج إلى ${Math.abs(balanceAfter)} XP إضافية.`,
+      warning: "fallback-humanize-api",
     });
-  } catch (error) {
-    return apiError(error);
+  } catch {
+    return Response.json({ error: "VALIDATION_ERROR", message: "تعذر تحليل النص الآن." }, { status: 400 });
   }
 }

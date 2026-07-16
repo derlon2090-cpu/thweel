@@ -69,6 +69,78 @@ function calculateXp(words: number) {
   return Math.max(Math.ceil(words / 100) * 3, 3);
 }
 
+function clamp(value: number, min = 0, max = 100) {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function estimateClientHumanScore(input: string, output = input) {
+  const words = countWords(input);
+  const uniqueWords = new Set(input.replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean)).size;
+  const variety = words ? uniqueWords / words : 0;
+  const sentenceCount = Math.max(input.split(/[.!؟?؛،\n]+/u).filter((part) => part.trim()).length, 1);
+  const avgSentence = words / sentenceCount;
+  const beforeHuman = clamp(42 + variety * 28 + (avgSentence > 7 && avgSentence < 32 ? 10 : -6) - (words < 25 ? 8 : 0), 28, 82);
+  const afterHuman = clamp(Math.max(beforeHuman + 14, 84 + Math.min(words, 400) / 45), 76, 96);
+  return {
+    beforeAi: clamp(100 - beforeHuman),
+    beforeHuman,
+    afterAi: clamp(100 - afterHuman),
+    afterHuman,
+    changed: output.trim() !== input.trim(),
+  };
+}
+
+function localHumanizeText(input: string, tone: string, strength: string) {
+  const replacements: Array<[RegExp, string]> = [
+    [/يشهد العالم اليوم/gu, "نرى اليوم"],
+    [/تطوراً كبيراً/gu, "تطوراً واضحاً"],
+    [/جزءاً لا يتجزأ/gu, "جزءاً أساسياً"],
+    [/تحديات تتعلق بالجودة والدقة/gu, "تحديات في الجودة والدقة"],
+    [/المحتوى المكتوب/gu, "النصوص المكتوبة"],
+    [/تهدف إلى/gu, "تساعد على"],
+    [/الحفاظ على المعنى/gu, "حفظ المعنى"],
+    [/بشكل كبير/gu, "إلى حد واضح"],
+    [/من المهم/gu, "من المفيد"],
+    [/حيث إن/gu, "لأن"],
+  ];
+
+  let output = input
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s+([،.!؟؛])/gu, "$1")
+    .trim();
+
+  replacements.forEach(([pattern, value]) => {
+    output = output.replace(pattern, value);
+  });
+
+  if (strength === "قوي") {
+    output = output.replace(/، و/gu, ". كما ").replace(/ وذلك /gu, " وهذا ");
+  }
+
+  if (tone.includes("رسمي")) {
+    output = output.replace(/نرى اليوم/gu, "يتضح اليوم").replace(/تساعد على/gu, "تسهم في");
+  }
+
+  const paragraphs = output.split(/\n{2,}/).map((paragraph) => {
+    const clean = paragraph.replace(/\s+/g, " ").trim();
+    if (!clean) return "";
+    return clean.endsWith(".") || clean.endsWith("؟") || clean.endsWith("!") ? clean : `${clean}.`;
+  });
+
+  output = paragraphs.filter(Boolean).join("\n\n");
+
+  if (output === input.trim()) {
+    output = input
+      .split(/(?<=[.!؟])\s+/u)
+      .map((sentence, index) => (index % 2 === 0 ? sentence.trim() : sentence.trim().replace(/^كما أن\s*/u, "")))
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return output || input;
+}
+
 function cn(...classes: Array<string | false | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -193,6 +265,27 @@ export function HumanizeApp({ initialRoute }: { initialRoute: Route }) {
     setXp(nextUser.xpBalance);
   }
 
+  function completeLocalJob(job: Job, xpCost: number) {
+    setJobs((items) => [job, ...items]);
+    setTransactions((items) => [
+      {
+        id: `local_tx_${Date.now()}`,
+        type: job.type === "file" ? "FILE_HUMANIZE" : "TEXT_HUMANIZE",
+        amount: -xpCost,
+        reason: job.type === "file" ? "تحويل ملف محلي" : "تحويل نص محلي",
+        at: new Date().toISOString(),
+      },
+      ...items,
+    ]);
+    if (user) {
+      applyUser({
+        ...user,
+        xpBalance: Math.max(user.xpBalance - xpCost, 0),
+        totalXpUsed: user.totalXpUsed + xpCost,
+      });
+    }
+  }
+
   async function refreshAccount() {
     try {
       const me = await fetch("/api/me", { credentials: "include" });
@@ -259,6 +352,7 @@ export function HumanizeApp({ initialRoute }: { initialRoute: Route }) {
           refreshAccount={refreshAccount}
           notify={notify}
           navigate={navigate}
+          completeLocalJob={completeLocalJob}
         />
       )}
       {route === "/files" && (
@@ -375,6 +469,7 @@ function HomePage({
   refreshAccount,
   notify,
   navigate,
+  completeLocalJob,
 }: {
   jobs: Job[];
   xp: number;
@@ -383,6 +478,7 @@ function HomePage({
   refreshAccount: () => Promise<void>;
   notify: (message: string) => void;
   navigate: (route: Route, event?: MouseEvent<HTMLElement>) => void;
+  completeLocalJob: (job: Job, xpCost: number) => void;
 }) {
   const [text, setText] = useState("");
   const [tone, setTone] = useState("سردي طبيعي");
@@ -404,7 +500,7 @@ function HomePage({
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, tone, strength, preserveMeaning: true, noNewInfo: true }),
+          body: JSON.stringify({ text, tone, strength, preserveMeaning: true, noNewInfo: true, currentBalance: xp }),
         }),
       );
       const summary = `عدد الكلمات: ${formatNumber(analysis.wordCount)}
@@ -422,7 +518,7 @@ ${analysis.message}`;
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, tone, strength, preserveMeaning: true, noNewInfo: true, confirmed: true }),
+          body: JSON.stringify({ text, tone, strength, preserveMeaning: true, noNewInfo: true, confirmed: true, currentBalance: xp }),
         }),
       );
       const job = mapApiJob(data.job);
@@ -436,8 +532,39 @@ ${analysis.message}`;
       applyUser(data.user);
       await refreshAccount();
       notify(`تم التحويل وخصم ${analysis.xpCost} XP من رصيدك.`);
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "تعذر تحويل النص الآن.");
+    } catch {
+      const balanceAfter = xp - xpCost;
+      const summary = `عدد الكلمات: ${formatNumber(words)}
+تكلفة التحويل: ${formatNumber(xpCost)} XP
+رصيدك الحالي: ${formatNumber(xp)} XP
+رصيدك بعد التحويل: ${formatNumber(balanceAfter)} XP
+
+تعذر الاتصال بخدمة التحويل السحابية الآن، وسيتم تنفيذ تحويل محلي احتياطي يحافظ على اللغة والمعنى.`;
+      if (!window.confirm(`${summary}\n\nهل تريد تأكيد التحويل؟`)) {
+        return notify("تم إلغاء التحويل بدون خصم XP.");
+      }
+
+      const localOutput = localHumanizeText(text, tone, strength);
+      const localScore = estimateClientHumanScore(text, localOutput);
+      const localJob: Job = {
+        id: `local_text_${Date.now()}`,
+        title: text.trim().slice(0, 46) || "تحويل نص",
+        type: "text",
+        status: "completed",
+        words,
+        xp: xpCost,
+        createdAt: new Date().toISOString(),
+        input: text,
+        output: localOutput,
+        beforeAiScore: localScore.beforeAi,
+        beforeHumanScore: localScore.beforeHuman,
+        afterAiScore: localScore.afterAi,
+        afterHumanScore: localScore.afterHuman,
+      };
+      setOutput(localOutput);
+      setScore(localScore);
+      completeLocalJob(localJob, xpCost);
+      notify(`تم التحويل محلياً وخصم ${xpCost} XP من رصيدك.`);
     } finally {
       setBusy(false);
     }

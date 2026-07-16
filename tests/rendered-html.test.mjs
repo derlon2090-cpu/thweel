@@ -42,10 +42,13 @@ test("app shell includes Quillora branding and XP flow", async () => {
   assert.match(app, /\/register/);
   assert.match(app, /clientFallbackUser/);
   assert.match(app, /quillora_session=client_fallback/);
+  assert.match(app, /localHumanizeText/);
+  assert.match(app, /تعذر الاتصال بخدمة التحويل السحابية/);
+  assert.match(app, /completeLocalJob/);
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
-  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute] = await Promise.all([
+  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute, textAnalyzeRoute, textConfirmRoute] = await Promise.all([
     readFile(new URL("../src/lib/database-url.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/db.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/server/auth/fallback-session.ts", import.meta.url), "utf8"),
@@ -57,6 +60,8 @@ test("auth deployment has database setup and clear server errors", async () => {
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/auth/login/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/auth/register/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/humanize/text/analyze/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/humanize/text/confirm/route.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(databaseUrl, /POSTGRES_PRISMA_URL/);
@@ -77,8 +82,12 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(http, /DATABASE_UNAVAILABLE/);
   assert.doesNotMatch(loginRoute, /@\/src\//);
   assert.doesNotMatch(registerRoute, /@\/src\//);
+  assert.doesNotMatch(textAnalyzeRoute, /@\/src\//);
+  assert.doesNotMatch(textConfirmRoute, /@\/src\//);
   assert.match(loginRoute, /fallback-auth/);
   assert.match(registerRoute, /fallback-auth/);
+  assert.match(textAnalyzeRoute, /fallback-humanize-api/);
+  assert.match(textConfirmRoute, /fallback-humanize-api/);
   assert.match(loginRoute, /Set-Cookie/);
   assert.match(registerRoute, /Set-Cookie/);
   assert.match(fallbackSession, /fallback\./);
