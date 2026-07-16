@@ -81,8 +81,8 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.doesNotMatch(http, /from "@\/app\/generated\/prisma"/);
   assert.match(http, /VALIDATION_ERROR/);
   assert.match(http, /DATABASE_UNAVAILABLE/);
-  assert.match(loginRoute, /@\/src\/lib\/db/);
-  assert.match(registerRoute, /@\/src\/lib\/db/);
+  assert.match(loginRoute, /@neondatabase\/serverless/);
+  assert.match(registerRoute, /@neondatabase\/serverless/);
   assert.doesNotMatch(textAnalyzeRoute, /@\/src\//);
   assert.doesNotMatch(textConfirmRoute, /@\/src\//);
   assert.doesNotMatch(fileAnalyzeRoute, /@\/src\/lib\/db/);
