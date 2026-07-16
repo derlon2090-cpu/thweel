@@ -51,9 +51,10 @@ test("app shell includes Quillora branding and XP flow", async () => {
 });
 
 test("auth deployment has database setup and clear server errors", async () => {
-  const [databaseUrl, db, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute, accountLoginRoute, accountRegisterRoute, sessionLoginRoute, sessionRegisterRoute, textAnalyzeRoute, textConfirmRoute, fileAnalyzeRoute, fileConfirmRoute] = await Promise.all([
+  const [databaseUrl, db, accountEdgeDb, fallbackSession, prebuild, migration, vercel, http, css, layout, loginRoute, registerRoute, accountLoginRoute, accountRegisterRoute, accountHealthRoute, sessionLoginRoute, sessionRegisterRoute, textAnalyzeRoute, textConfirmRoute, fileAnalyzeRoute, fileConfirmRoute] = await Promise.all([
     readFile(new URL("../src/lib/database-url.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/db.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/server/account-edge-db.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/server/auth/fallback-session.ts", import.meta.url), "utf8"),
     readFile(new URL("../scripts/prebuild.mjs", import.meta.url), "utf8"),
     readFile(new URL("../prisma/migrations/0001_init/migration.sql", import.meta.url), "utf8"),
@@ -65,6 +66,7 @@ test("auth deployment has database setup and clear server errors", async () => {
     readFile(new URL("../app/api/auth/register/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/account/login/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/account/health/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/session/login/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/session/register/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/humanize/text/analyze/route.ts", import.meta.url), "utf8"),
@@ -99,6 +101,11 @@ test("auth deployment has database setup and clear server errors", async () => {
   assert.match(accountRegisterRoute, /runtime = "edge"/);
   assert.match(accountLoginRoute, /@neondatabase\/serverless/);
   assert.match(accountRegisterRoute, /@neondatabase\/serverless/);
+  assert.match(accountLoginRoute, /ensureAccountTables/);
+  assert.match(accountRegisterRoute, /ensureAccountTables/);
+  assert.match(accountHealthRoute, /ensureAccountTables/);
+  assert.match(accountEdgeDb, /CREATE TABLE IF NOT EXISTS "Profile"/);
+  assert.match(accountEdgeDb, /CREATE TABLE IF NOT EXISTS "UserSession"/);
   assert.match(sessionLoginRoute, /safe-session/);
   assert.match(sessionRegisterRoute, /safe-session/);
   assert.doesNotMatch(textAnalyzeRoute, /@\/src\//);

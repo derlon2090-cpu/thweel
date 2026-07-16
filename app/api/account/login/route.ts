@@ -108,7 +108,9 @@ export async function POST(request: Request) {
     if (!url) return fallback(email);
 
     const { neon } = await import("@neondatabase/serverless");
+    const { ensureAccountTables } = await import("@/src/server/account-edge-db");
     const sql = neon(url);
+    await ensureAccountTables(sql);
     const rows = await sql`
       SELECT "id", "email", "fullName", "passwordHash", "xpBalance", "xpLevel", "totalXpUsed", "totalXpEarned", "createdAt", "lastLoginAt"
       FROM "Profile"

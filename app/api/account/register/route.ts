@@ -112,7 +112,9 @@ export async function POST(request: Request) {
     if (!url) return fallback(email, fullName);
 
     const { neon } = await import("@neondatabase/serverless");
+    const { ensureAccountTables } = await import("@/src/server/account-edge-db");
     const sql = neon(url);
+    await ensureAccountTables(sql);
     const now = new Date().toISOString();
     const existing = await sql`SELECT "id" FROM "Profile" WHERE "email" = ${email} LIMIT 1`;
     const passwordHash = await hashPassword(password);
