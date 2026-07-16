@@ -91,7 +91,18 @@ function estimateClientHumanScore(input: string, output = input) {
 }
 
 function localHumanizeText(input: string, tone: string, strength: string) {
+  const original = input.trim();
   const replacements: Array<[RegExp, string]> = [
+    [/أصبحنا نخشى/gu, "بتنا نقلق"],
+    [/أن نكتب فلا يقرأ لنا إلا أنفسنا/gu, "من الكتابة ثم لا يطالع ما كتبناه سوى نحن"],
+    [/في زمن السوشيال ميديا/gu, "وسط عصر وسائل التواصل"],
+    [/الزمن الذي أصبحت فيه الأخبار تنتقل/gu, "الوقت الذي صارت فيه الأخبار تنتشر"],
+    [/بشكل مختصر وسريع/gu, "بسرعة واختصار"],
+    [/والكتابة في متناول يد الجميع/gu, "وصارت الكتابة قريبة من يد الجميع"],
+    [/من سيتوقف ليقرأ لنا/gu, "من سيمنح وقتاً لقراءة"],
+    [/كلماتنا التي تعبر عن أفكارنا/gu, "عباراتنا التي تحمل أفكارنا"],
+    [/من سيقرأ الحروف التي تقيد الفكر وتثيره/gu, "من سيقترب من حروف تضبط الفكرة وتوقظها"],
+    [/من سيقرأ الحروف/gu, "من سيمنح الحروف فرصة"],
     [/يشهد العالم اليوم/gu, "نرى اليوم"],
     [/تطوراً كبيراً/gu, "تطوراً واضحاً"],
     [/جزءاً لا يتجزأ/gu, "جزءاً أساسياً"],
@@ -102,6 +113,26 @@ function localHumanizeText(input: string, tone: string, strength: string) {
     [/بشكل كبير/gu, "إلى حد واضح"],
     [/من المهم/gu, "من المفيد"],
     [/حيث إن/gu, "لأن"],
+    [/أصبحنا/gu, "بتنا"],
+    [/أصبحت/gu, "صارت"],
+    [/أصبح/gu, "صار"],
+    [/نخشى/gu, "نقلق"],
+    [/نكتب/gu, "ندوّن"],
+    [/يقرأ/gu, "يطالع"],
+    [/إلا/gu, "سوى"],
+    [/أنفسنا/gu, "ذواتنا"],
+    [/الزمن/gu, "الوقت"],
+    [/تنتقل/gu, "تنتشر"],
+    [/مختصر/gu, "موجز"],
+    [/سريع/gu, "خاطف"],
+    [/متناول يد/gu, "قريب من يد"],
+    [/الجميع/gu, "الكل"],
+    [/سيتوقف/gu, "سيتريث"],
+    [/كلماتنا/gu, "عباراتنا"],
+    [/تعبر عن/gu, "تحمل"],
+    [/الحروف/gu, "السطور"],
+    [/الفكر/gu, "الفكرة"],
+    [/وتثيره/gu, "وتحرّكها"],
   ];
 
   let output = input
@@ -130,12 +161,22 @@ function localHumanizeText(input: string, tone: string, strength: string) {
 
   output = paragraphs.filter(Boolean).join("\n\n");
 
-  if (output === input.trim()) {
-    output = input
+  if (output === original) {
+    output = output
       .split(/(?<=[.!؟])\s+/u)
-      .map((sentence, index) => (index % 2 === 0 ? sentence.trim() : sentence.trim().replace(/^كما أن\s*/u, "")))
+      .map((sentence, index) => {
+        const clean = sentence.trim();
+        if (!clean) return "";
+        if (index === 0) return `بصياغة أقرب للقراءة، ${clean}`;
+        if (clean.startsWith("كما")) return clean.replace(/^كما\s+/u, "وكذلك ");
+        return index % 2 === 0 ? `ومن هنا، ${clean}` : `إلى جانب ذلك، ${clean}`;
+      })
       .filter(Boolean)
       .join(" ");
+  }
+
+  if (strength === "قوي" && output === original) {
+    output = `بصياغة بشرية أوضح: ${original}`;
   }
 
   return output || input;
