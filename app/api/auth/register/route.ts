@@ -1,14 +1,24 @@
-import { prisma } from "@/src/lib/db";
 import { WELCOME_XP } from "@/src/lib/xp";
 import { createFallbackSession } from "@/src/server/auth/fallback-session";
-import { hashPassword } from "@/src/server/auth/password";
-import { createUserSession } from "@/src/server/auth/session";
-import { publicUser } from "@/src/server/serializers";
 
 export const runtime = "nodejs";
 
 const REGISTER_ERROR =
   "\u0623\u062f\u062e\u0644 \u0627\u0633\u0645\u0627\u064b \u0648\u0628\u0631\u064a\u062f\u0627\u064b \u0648\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0644\u0627 \u062a\u0642\u0644 \u0639\u0646 8 \u0623\u062d\u0631\u0641.";
+
+function publicUser(user: any) {
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    xpBalance: user.xpBalance,
+    xpLevel: user.xpLevel,
+    totalXpUsed: user.totalXpUsed,
+    totalXpEarned: user.totalXpEarned,
+    lastLoginAt: user.lastLoginAt,
+    createdAt: user.createdAt,
+  };
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,6 +31,11 @@ export async function POST(request: Request) {
     }
 
     try {
+      const [{ prisma }, { hashPassword }, { createUserSession }] = await Promise.all([
+        import("@/src/lib/db"),
+        import("@/src/server/auth/password"),
+        import("@/src/server/auth/session"),
+      ]);
       const passwordHash = await hashPassword(password);
       const user = await prisma.profile.create({
         data: {
