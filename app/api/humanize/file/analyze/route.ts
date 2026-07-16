@@ -1,6 +1,6 @@
 import { detectLanguage } from "@/src/lib/language";
 import { calculateFileXpCost, countArabicAwareWords, getFileWordLimit, isLargeFile } from "@/src/lib/xp";
-import { extractTextFromUpload } from "@/src/server/files";
+import { extractTextFromUpload, FileTextExtractionError } from "@/src/server/files";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -76,6 +76,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[quillora] File analyze failed.", error);
+    if (error instanceof FileTextExtractionError) {
+      return Response.json({ error: error.code, message: error.message }, { status: error.status });
+    }
     return Response.json({ error: "FILE_ANALYZE_FAILED", message: "\u062a\u0639\u0630\u0631 \u062a\u0634\u063a\u064a\u0644 \u062e\u062f\u0645\u0629 \u0627\u0644\u0645\u0644\u0641\u0627\u062a \u0627\u0644\u0622\u0646." }, { status: 500 });
   }
 }

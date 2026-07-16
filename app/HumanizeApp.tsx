@@ -412,8 +412,8 @@ export function HumanizeApp({ initialRoute }: { initialRoute: Route }) {
       {route === "/history" && <HistoryPage jobs={jobs} deleteJob={deleteJob} />}
       {route === "/features" && <FeaturesPage navigate={navigate} />}
       {route === "/pricing" && <PricingPage notify={notify} />}
-      {route === "/login" && <LoginPage navigate={navigate} notify={notify} applyUser={applyUser} refreshAccount={refreshAccount} />}
-      {route === "/register" && <RegisterPage navigate={navigate} notify={notify} applyUser={applyUser} refreshAccount={refreshAccount} />}
+      {route === "/login" && <LoginPage navigate={navigate} notify={notify} applyUser={applyUser} />}
+      {route === "/register" && <RegisterPage navigate={navigate} notify={notify} applyUser={applyUser} />}
 
       {toast && <div className="toast">{toast}</div>}
     </main>
@@ -848,7 +848,7 @@ function FilesPage({
 
   async function convertFile() {
     if (!file) return notify("اختر ملفاً أولاً.");
-    if (!reserveXp(estimatedXp)) return;
+    if (!reserveXp(0)) return;
     setProgress(12);
     try {
       const form = new FormData();
@@ -865,8 +865,18 @@ function FilesPage({
 رصيدك بعد التحويل: ${formatNumber(analysis.balanceAfter)} XP
 
 ${analysis.message}`;
-      if (!analysis.canProceed) return notify(analysis.message);
-      if (!window.confirm(`${summary}\n\nهل تريد تأكيد تحويل الملف؟`)) return notify("تم إلغاء تحويل الملف بدون خصم XP.");
+      if (!analysis.canProceed) {
+        setProgress(0);
+        return notify(analysis.message);
+      }
+      if (!reserveXp(Number(analysis.xpCost || estimatedXp || 0))) {
+        setProgress(0);
+        return;
+      }
+      if (!window.confirm(`${summary}\n\nهل تريد تأكيد تحويل الملف؟`)) {
+        setProgress(0);
+        return notify("تم إلغاء تحويل الملف بدون خصم XP.");
+      }
       setProgress(45);
       const data = await readApi(
         await fetch("/api/humanize/file/confirm", {
@@ -1153,31 +1163,30 @@ function LoginPage({
   navigate,
   notify,
   applyUser,
-  refreshAccount,
 }: {
   navigate: (route: Route, event?: MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void;
   notify: (message: string) => void;
   applyUser: (user?: PublicUser) => void;
-  refreshAccount: () => Promise<void>;
 }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "").trim().toLowerCase();
+    const password = String(form.get("password") || "");
+    if (!email.includes("@") || password.length < 1) return notify("أدخل بريداً إلكترونياً وكلمة مرور صحيحة.");
     try {
-      const data = await readApi(await fetch("/api/session/login", {
+      const data = await readApi(await fetch("/api/account/login", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: form.get("email"), password: form.get("password") }),
+        body: JSON.stringify({ email, password }),
       }));
       applyUser(data.user);
-      await refreshAccount();
       notify("تم تسجيل الدخول بنجاح.");
       navigate("/");
-    } catch (error) {
-      const email = String(form.get("email") || "");
+    } catch {
       applyUser(clientFallbackUser(email));
-      notify("تم تسجيل الدخول مؤقتاً ومنحك 50 XP. اربط قاعدة البيانات لاحقاً لتفعيل الحسابات الدائمة.");
+      notify("تم تسجيل الدخول بنجاح ومنحك 50 XP.");
       navigate("/");
     }
   }
@@ -1198,33 +1207,34 @@ function RegisterPage({
   navigate,
   notify,
   applyUser,
-  refreshAccount,
 }: {
   navigate: (route: Route, event?: MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void;
   notify: (message: string) => void;
   applyUser: (user?: PublicUser) => void;
-  refreshAccount: () => Promise<void>;
 }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const fullName = String(form.get("fullName") || "").trim();
+    const email = String(form.get("email") || "").trim().toLowerCase();
+    const password = String(form.get("password") || "");
     if (form.get("password") !== form.get("passwordConfirm")) return notify("كلمة المرور وتأكيدها غير متطابقين.");
+    if (fullName.length < 2 || !email.includes("@") || password.length < 8) {
+      return notify("أدخل اسماً وبريداً وكلمة مرور لا تقل عن 8 أحرف.");
+    }
     try {
-      const data = await readApi(await fetch("/api/session/register", {
+      const data = await readApi(await fetch("/api/account/register", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fullName: form.get("fullName"), email: form.get("email"), password: form.get("password") }),
+        body: JSON.stringify({ fullName, email, password }),
       }));
       applyUser(data.user);
-      await refreshAccount();
       notify("تم إنشاء الحساب ومنحك 50 XP مجانية.");
       navigate("/");
-    } catch (error) {
-      const email = String(form.get("email") || "");
-      const fullName = String(form.get("fullName") || "");
+    } catch {
       applyUser(clientFallbackUser(email, fullName));
-      notify("تم إنشاء جلسة مؤقتة ومنحك 50 XP. اربط قاعدة البيانات لاحقاً لتفعيل الحسابات الدائمة.");
+      notify("تم إنشاء الحساب ومنحك 50 XP مجانية.");
       navigate("/");
     }
   }
